@@ -7,7 +7,7 @@ no qual foi produzido através do curso de React da [Rocketseat](https://www.roc
 
 O projeto consiste na criação de um timer para realizar a metodologia de estudos de [Pomodoro](https://pt.wikipedia.org/wiki/T%C3%A9cnica_pomodoro)
 
-*Obs.:* O projeto possui alguns comentários de anotações de estudo sobre funcionalidades e bibliotecas em português.
+_Obs.:_ O projeto possui alguns comentários de anotações de estudo sobre funcionalidades e bibliotecas em português.
 
 ---
 
