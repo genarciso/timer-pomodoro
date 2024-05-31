@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { CountdownContainer, Separator } from './Countdown.styles'
 import { differenceInSeconds } from 'date-fns'
-import { Cycle } from '../../Home'
+import { CyclesContext } from '../../Home'
 
 /**
  * --- Alerta ---
- * Uma má pratica criar um componente com muitas props dependentes de seu pai.
+ * É uma má pratica criar um componente com muitas props dependentes de seu pai.
  * Isso é chamado de props drilling. Pode ser evitado com o uso de contextos.
  */
 // interface CountdownProps {
@@ -13,9 +13,12 @@ import { Cycle } from '../../Home'
 //   activeCycleId: string | null
 //   setCycles: any
 //   setActiveCycleId: any
-}
+// }
 
 export function Countdown() {
+  const { activeCycle, activeCycleId, markCycleAsFinished } =
+    useContext(CyclesContext)
+
   const [amountSecondPassed, setAmountSecondPassed] = useState(0)
 
   const totalSeconds = activeCycle ? activeCycle.minutesAmount * 60 : 0
@@ -34,21 +37,9 @@ export function Countdown() {
         )
 
         if (secondsDifference >= totalSeconds) {
-          setCycles((prevCycles: Cycle[]) =>
-            prevCycles.map((cycle) => {
-              if (cycle.id === activeCycle.id) {
-                return {
-                  ...cycle,
-                  finishedDate: new Date(),
-                }
-              }
-
-              return cycle
-            }),
-          )
+          markCycleAsFinished()
 
           setAmountSecondPassed(totalSeconds)
-          setActiveCycleId(null)
           clearInterval(interval)
         } else {
           setAmountSecondPassed(secondsDifference)
@@ -59,7 +50,7 @@ export function Countdown() {
     return () => {
       clearInterval(interval)
     }
-  }, [activeCycle, totalSeconds, activeCycleId])
+  }, [activeCycle, totalSeconds, activeCycleId, markCycleAsFinished])
 
   useEffect(() => {
     if (activeCycle) {
@@ -67,7 +58,7 @@ export function Countdown() {
     } else {
       document.title = 'Timer - Pomodoro'
     }
-  }, [minutesAmount, secondsAmount])
+  }, [minutesAmount, secondsAmount, activeCycle])
 
   return (
     <CountdownContainer>

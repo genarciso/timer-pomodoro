@@ -4,7 +4,7 @@ import {
   StartCountdownButton,
   StopCountdownButton,
 } from './Home.styles'
-import { useState } from 'react'
+import { createContext, useState } from 'react'
 import { NewCycleForm } from './components/NewCycleForm'
 import { Countdown } from './components/Countdown'
 import { NewCycleFormData } from './components/NewCycleForm/NewCycleForm'
@@ -17,6 +17,17 @@ export interface Cycle {
   interruptedDate?: Date
   finishedDate?: Date
 }
+
+interface CycleContextType {
+  activeCycleId: string | null
+  cycles: Cycle[]
+  activeCycle: Cycle | undefined
+  markCycleAsFinished: () => void
+}
+
+export const CyclesContext = createContext<CycleContextType>(
+  {} as CycleContextType,
+)
 
 function Home() {
   const [cycles, setCycles] = useState<Cycle[]>([])
@@ -57,13 +68,36 @@ function Home() {
     setActiveCycleId(null)
   }
 
+  function markCycleAsFinished() {
+    if (!activeCycle) {
+      return
+    }
+
+    setCycles((prevCycles: Cycle[]) =>
+      prevCycles.map((cycle) => {
+        if (cycle.id === activeCycle.id) {
+          return {
+            ...cycle,
+            finishedDate: new Date(),
+          }
+        }
+
+        return cycle
+      }),
+    )
+    setActiveCycleId(null)
+  }
+
   return (
     <HomeContainer>
       <form onSubmit={handleSubmit(handleCreateNewCycle)} action="">
-        <NewCycleForm />
+        <CyclesContext.Provider
+          value={{ activeCycleId, cycles, activeCycle, markCycleAsFinished }}
+        >
+          <NewCycleForm />
 
-        <Countdown />
-
+          <Countdown />
+        </CyclesContext.Provider>
         {activeCycle ? (
           <StopCountdownButton type="button" onClick={handleInterruptCycle}>
             <HandPalm size={24} />
