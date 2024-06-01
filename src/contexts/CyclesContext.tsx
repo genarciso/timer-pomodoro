@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useState } from 'react'
+import { ReactNode, createContext, useReducer, useState } from 'react'
 
 export interface Cycle {
   id: string
@@ -25,6 +25,11 @@ interface CycleContextType {
   interruptCurrentCycle: () => void
 }
 
+interface InfoCyclesState {
+  cycles: Cycle[]
+  activeCycleId: string | null
+}
+
 export const CyclesContext = createContext<CycleContextType>(
   {} as CycleContextType,
 )
@@ -36,9 +41,57 @@ interface CyclesContextProviderProps {
 export function CyclesContextProvider({
   children,
 }: CyclesContextProviderProps) {
-  const [cycles, setCycles] = useState<Cycle[]>([])
-  const [activeCycleId, setActiveCycleId] = useState<string | null>(null)
+  /**
+   * useReducer - Hook do React que permite gerenciar estados complexos.
+   * O useReducer é utilizado quando possui estados mais complexos,
+   * que precisa do seu estado anterior ou de outras fontes para realizar sua mudança.
+   */
+  const [infoCyclesState, dispatchChangeOnCycles] = useReducer(
+    (
+      actualState: InfoCyclesState,
+      action: { type: string; payload?: { newCycle: Cycle } },
+    ) => {
+      const { newCycle } = action.payload || { newCycle: {} as Cycle }
+      switch (action.type) {
+        case 'CREATE_CYCLE':
+          return {
+            ...actualState,
+            cycles: [...actualState.cycles, newCycle],
+            activeCycleId: newCycle.id,
+          }
+        case 'FINISH_CYCLE':
+          return {
+            ...actualState,
+            cycles: actualState.cycles.map((cycle) =>
+              cycle.id === actualState.activeCycleId
+                ? { ...cycle, finishedDate: new Date() }
+                : cycle,
+            ),
+            activeCycleId: null,
+          }
+        case 'INTERRUPT_CYCLE':
+          return {
+            ...actualState,
+            cycles: actualState.cycles.map((cycle) =>
+              cycle.id === actualState.activeCycleId
+                ? { ...cycle, interruptedDate: new Date() }
+                : cycle,
+            ),
+            activeCycleId: null,
+          }
+        default:
+          return actualState
+      }
+    },
+    {
+      cycles: [],
+      activeCycleId: null,
+    },
+  )
+
   const [amountSecondsPassed, setAmountSecondsPassed] = useState(0)
+
+  const { cycles, activeCycleId } = infoCyclesState
 
   const activeCycle = cycles.find((cycle) => cycle.id === activeCycleId)
 
@@ -46,20 +99,9 @@ export function CyclesContextProvider({
     if (!activeCycle) {
       return
     }
-
-    setCycles((prevCycles: Cycle[]) =>
-      prevCycles.map((cycle) => {
-        if (cycle.id === activeCycle.id) {
-          return {
-            ...cycle,
-            finishedDate: new Date(),
-          }
-        }
-
-        return cycle
-      }),
-    )
-    setActiveCycleId(null)
+    dispatchChangeOnCycles({
+      type: 'FINISH_CYCLE',
+    })
   }
 
   function setSecondsPassed(seconds: number) {
@@ -75,26 +117,18 @@ export function CyclesContextProvider({
       minutesAmount: data.minutesAmount,
     }
 
-    setCycles((prevCycles) => [...prevCycles, newCycle])
-    setActiveCycleId(id)
+    dispatchChangeOnCycles({
+      type: 'CREATE_CYCLE',
+      payload: { newCycle },
+    })
+
     setAmountSecondsPassed(0)
   }
 
   function interruptCurrentCycle() {
-    setCycles((prevCycles) =>
-      prevCycles.map((cycle) => {
-        if (cycle.id === activeCycleId) {
-          return {
-            ...cycle,
-            interruptedDate: new Date(),
-          }
-        }
-
-        return cycle
-      }),
-    )
-
-    setActiveCycleId(null)
+    dispatchChangeOnCycles({
+      type: 'INTERRUPT_CYCLE',
+    })
   }
 
   return (
