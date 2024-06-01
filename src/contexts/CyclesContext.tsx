@@ -1,13 +1,16 @@
-import { ReactNode, createContext, useReducer, useState } from 'react'
-
-export interface Cycle {
-  id: string
-  task: string
-  minutesAmount: number
-  startDate: Date
-  interruptedDate?: Date
-  finishedDate?: Date
-}
+import {
+  ReactNode,
+  createContext,
+  useEffect,
+  useReducer,
+  useState,
+} from 'react'
+import { Cycle, cyclesReducers } from '../reducers/cycles/reducer'
+import {
+  addNewCycleAction,
+  finishCycleAction,
+  interruptCycleAction,
+} from '../reducers/cycles/actions'
 
 interface CreateNewCycle {
   task: string
@@ -23,11 +26,6 @@ interface CycleContextType {
   setSecondsPassed: (seconds: number) => void
   createNewCycle: (data: CreateNewCycle) => void
   interruptCurrentCycle: () => void
-}
-
-interface InfoCyclesState {
-  cycles: Cycle[]
-  activeCycleId: string | null
 }
 
 export const CyclesContext = createContext<CycleContextType>(
@@ -47,45 +45,22 @@ export function CyclesContextProvider({
    * que precisa do seu estado anterior ou de outras fontes para realizar sua mudança.
    */
   const [infoCyclesState, dispatchChangeOnCycles] = useReducer(
-    (
-      actualState: InfoCyclesState,
-      action: { type: string; payload?: { newCycle: Cycle } },
-    ) => {
-      const { newCycle } = action.payload || { newCycle: {} as Cycle }
-      switch (action.type) {
-        case 'CREATE_CYCLE':
-          return {
-            ...actualState,
-            cycles: [...actualState.cycles, newCycle],
-            activeCycleId: newCycle.id,
-          }
-        case 'FINISH_CYCLE':
-          return {
-            ...actualState,
-            cycles: actualState.cycles.map((cycle) =>
-              cycle.id === actualState.activeCycleId
-                ? { ...cycle, finishedDate: new Date() }
-                : cycle,
-            ),
-            activeCycleId: null,
-          }
-        case 'INTERRUPT_CYCLE':
-          return {
-            ...actualState,
-            cycles: actualState.cycles.map((cycle) =>
-              cycle.id === actualState.activeCycleId
-                ? { ...cycle, interruptedDate: new Date() }
-                : cycle,
-            ),
-            activeCycleId: null,
-          }
-        default:
-          return actualState
-      }
-    },
+    cyclesReducers,
     {
       cycles: [],
       activeCycleId: null,
+    },
+    () => {
+      const stateStoredAsJSON = localStorage.getItem('@pomodoro:cycles-info')
+
+      if (stateStoredAsJSON) {
+        return JSON.parse(stateStoredAsJSON)
+      }
+
+      return {
+        cycles: [],
+        activeCycleId: null,
+      }
     },
   )
 
@@ -99,9 +74,7 @@ export function CyclesContextProvider({
     if (!activeCycle) {
       return
     }
-    dispatchChangeOnCycles({
-      type: 'FINISH_CYCLE',
-    })
+    dispatchChangeOnCycles(finishCycleAction())
   }
 
   function setSecondsPassed(seconds: number) {
@@ -117,19 +90,20 @@ export function CyclesContextProvider({
       minutesAmount: data.minutesAmount,
     }
 
-    dispatchChangeOnCycles({
-      type: 'CREATE_CYCLE',
-      payload: { newCycle },
-    })
+    dispatchChangeOnCycles(addNewCycleAction(newCycle))
 
     setAmountSecondsPassed(0)
   }
 
   function interruptCurrentCycle() {
-    dispatchChangeOnCycles({
-      type: 'INTERRUPT_CYCLE',
-    })
+    dispatchChangeOnCycles(interruptCycleAction())
   }
+
+  useEffect(() => {
+    const stateJSON = JSON.stringify(infoCyclesState)
+
+    localStorage.setItem('@pomodoro:cycles-info', stateJSON)
+  }, [infoCyclesState])
 
   return (
     <CyclesContext.Provider
