@@ -4,102 +4,69 @@ import {
   StartCountdownButton,
   StopCountdownButton,
 } from './Home.styles'
-import { createContext, useState } from 'react'
 import { NewCycleForm } from './components/NewCycleForm'
 import { Countdown } from './components/Countdown'
-import { NewCycleFormData } from './components/NewCycleForm/NewCycleForm'
+import { FormProvider, useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as zod from 'zod'
+import { useContext } from 'react'
+import { CyclesContext } from '../../contexts/CyclesContext'
 
-export interface Cycle {
-  id: string
-  task: string
-  minutesAmount: number
-  startDate: Date
-  interruptedDate?: Date
-  finishedDate?: Date
-}
+/**
+ * Zod é uma biblioteca de validação de modelo de dados.
+ * O react-hook-form não consegue validar os dados de um formulário por si,
+ * então é necessário de uma biblioteca de validação.
+ *
+ * zod.object - Cria um objeto de validação.
+ */
+const newCycleFormValidationSchema = zod.object({
+  task: zod.string().min(1, { message: 'Informe o nome da tarefa' }),
+  minutesAmount: zod
+    .number()
+    .min(1, { message: 'O ciclo precisa ser de no mínimo 5 minutos' })
+    .max(60, { message: 'O ciclo precisa ser de no máximo 60 minutos' }),
+})
 
-interface CycleContextType {
-  activeCycleId: string | null
-  cycles: Cycle[]
-  activeCycle: Cycle | undefined
-  markCycleAsFinished: () => void
-}
-
-export const CyclesContext = createContext<CycleContextType>(
-  {} as CycleContextType,
-)
+/**
+ * zod.infer - Função que ajuda a inferir o tipo de dados do formulário a partir do schema de validação.
+ */
+export type NewCycleFormData = zod.infer<typeof newCycleFormValidationSchema>
 
 function Home() {
-  const [cycles, setCycles] = useState<Cycle[]>([])
-  const [activeCycleId, setActiveCycleId] = useState<string | null>(null)
+  const { activeCycle, createNewCycle, interruptCurrentCycle } =
+    useContext(CyclesContext)
+  /**
+   * register - Função do react-hook-form que registra um input do formulário
+   * quando não se possui um objeto do modelo predefinido de formulário.
+   *
+   * handleSubmit - Função do react-hook-form que recebe uma função de callback
+   * que será executada quando o formulário for submetido.
+   */
+  const newCycleForm = useForm<NewCycleFormData>({
+    resolver: zodResolver(newCycleFormValidationSchema),
+    defaultValues: {
+      task: '',
+      minutesAmount: 0,
+    },
+  })
 
-  const activeCycle = cycles.find((cycle) => cycle.id === activeCycleId)
+  const { handleSubmit, reset } = newCycleForm
 
-  function handleCreateNewCycle(data: NewCycleFormData) {
-    const id = String(new Date().getTime())
-    const newCycle: Cycle = {
-      id,
-      task: data.task,
-      startDate: new Date(),
-      minutesAmount: data.minutesAmount,
-    }
-
-    setCycles((prevCycles) => [...prevCycles, newCycle])
-    setActiveCycleId(id)
-    setAmountSecondPassed(0)
-
+  const handleCreateNewCycle = (data: NewCycleFormData) => {
+    createNewCycle(data)
     reset()
-  }
-
-  function handleInterruptCycle() {
-    setCycles((prevCycles) =>
-      prevCycles.map((cycle) => {
-        if (cycle.id === activeCycleId) {
-          return {
-            ...cycle,
-            interruptedDate: new Date(),
-          }
-        }
-
-        return cycle
-      }),
-    )
-
-    setActiveCycleId(null)
-  }
-
-  function markCycleAsFinished() {
-    if (!activeCycle) {
-      return
-    }
-
-    setCycles((prevCycles: Cycle[]) =>
-      prevCycles.map((cycle) => {
-        if (cycle.id === activeCycle.id) {
-          return {
-            ...cycle,
-            finishedDate: new Date(),
-          }
-        }
-
-        return cycle
-      }),
-    )
-    setActiveCycleId(null)
   }
 
   return (
     <HomeContainer>
       <form onSubmit={handleSubmit(handleCreateNewCycle)} action="">
-        <CyclesContext.Provider
-          value={{ activeCycleId, cycles, activeCycle, markCycleAsFinished }}
-        >
+        <FormProvider {...newCycleForm}>
           <NewCycleForm />
+        </FormProvider>
 
-          <Countdown />
-        </CyclesContext.Provider>
+        <Countdown />
         {activeCycle ? (
-          <StopCountdownButton type="button" onClick={handleInterruptCycle}>
+          <StopCountdownButton type="button" onClick={interruptCurrentCycle}>
             <HandPalm size={24} />
             Interromper
           </StopCountdownButton>
