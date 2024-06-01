@@ -11,6 +11,7 @@ import {
   finishCycleAction,
   interruptCycleAction,
 } from '../reducers/cycles/actions'
+import { differenceInSeconds } from 'date-fns'
 
 interface CreateNewCycle {
   task: string
@@ -47,28 +48,31 @@ export function CyclesContextProvider({
   const [infoCyclesState, dispatchChangeOnCycles] = useReducer(
     cyclesReducers,
     {
-      cycles: [],
+      cycles: [] as Cycle[],
       activeCycleId: null,
     },
-    () => {
+    (initialState) => {
       const stateStoredAsJSON = localStorage.getItem('@pomodoro:cycles-info')
 
       if (stateStoredAsJSON) {
         return JSON.parse(stateStoredAsJSON)
       }
 
-      return {
-        cycles: [],
-        activeCycleId: null,
-      }
+      return initialState
     },
   )
-
-  const [amountSecondsPassed, setAmountSecondsPassed] = useState(0)
 
   const { cycles, activeCycleId } = infoCyclesState
 
   const activeCycle = cycles.find((cycle) => cycle.id === activeCycleId)
+
+  const [amountSecondsPassed, setAmountSecondsPassed] = useState(() => {
+    if (activeCycle) {
+      return differenceInSeconds(new Date(), new Date(activeCycle.startDate))
+    }
+
+    return 0
+  })
 
   function markCycleAsFinished() {
     if (!activeCycle) {
